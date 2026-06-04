@@ -18,3 +18,7 @@ docs/function-README.md  # 显式标注（docs/ 已覆盖）
 archive/
 chat-config.json
 *.zip
+
+# ChatDatabase 数据目录：跟踪 .gitkeep 让目录存在，数据文件全部忽略
+ChatDatabase/*
+!ChatDatabase/.gitkeep
