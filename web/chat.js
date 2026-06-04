@@ -9,8 +9,8 @@ const MAX_TITLE_LENGTH = 100;
 const RECENT_FILES = 1;
 const CHAT_CONFIG_PATH = 'chat-config.json';
 
-// Cache of the last Chat.md content we rendered from. renderMessages skips
-// work when the file's content hasn't changed.
+// Cache of the last rendered messages JSON. renderMessages skips
+// work when the messages haven't changed.
 let lastChatText = null;
 
 // Chat tabs state
@@ -75,10 +75,7 @@ async function saveMessagesToChat(messages) {
     }
 }
 
-// Add event listener for input changes
-chatInput.addEventListener('input', autoResize);
-// Initial resize to set proper height
-autoResize();
+
 
 chat.addEventListener('mouseover', function (e) {
     const message = e.target.closest('.message');
@@ -134,6 +131,7 @@ async function sendToChat() {
 }
 
 async function openChat() {
+    ensureChatInitialized();
     closeChatModal();
     chatContainer.style.display = 'flex';
 
@@ -419,10 +417,9 @@ function attachTabEventListeners() {
 }
 
 async function openChatModal() {
+    ensureChatInitialized();
     chatContainer.classList.add('modal');
     chatContainer.style.display = 'flex';
-    chat.style.display = 'block';
-    chatInputWrapper.style.display = 'block';
     chat.style.display = 'flex';
     chatInputWrapper.style.display = 'block';
 
@@ -455,21 +452,47 @@ async function toggleChatModal() {
     }
 }
 
-async function parseMessagesFromChat() {
-    const tab = getCurrentTab();
-    if (!tab) {
-        log('No current tab found, returning empty messages');
-        return { messages: [], text: '[]' };
+function handleChatPaste(e) {
+    const items = e.clipboardData.items;
+
+    for (const item of items) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            const fileName = generateSafeFilename(file.name);
+
+            writeMediaFile(fileName, file).then(saved => {
+                if (saved) {
+                    const imageMarkdown = `![${fileName}](media/${fileName})\n`;
+
+                    const cursorPos = chatInput.selectionStart;
+                    const textBefore = chatInput.value.substring(0, cursorPos);
+                    const textAfter = chatInput.value.substring(chatInput.selectionEnd);
+
+                    chatInput.value = textBefore + imageMarkdown + textAfter;
+
+                    const newCursorPos = cursorPos + imageMarkdown.length;
+                    chatInput.setSelectionRange(newCursorPos, newCursorPos);
+                    chatInput.focus();
+                }
+            });
+            break;
+        }
     }
-    const messages = tab.messages || [];
-    log(`parseMessagesFromChat: tab=${tab.name}, messages=${messages.length}`);
-    return { messages, text: JSON.stringify(messages) };
 }
 
 function initChat() {
+    if (!chatInput) {
+        logError('initChat: chatInput not found');
+        return;
+    }
+
     let isComposing = false;
+
     chatInput.addEventListener('compositionstart', function () { isComposing = true; });
     chatInput.addEventListener('compositionend', function () { isComposing = false; });
+    chatInput.addEventListener('input', autoResize);
+    chatInput.addEventListener('paste', handleChatPaste);
     chatInput.addEventListener('keydown', async function (e) {
         if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
             e.preventDefault();
@@ -486,6 +509,16 @@ function initChat() {
             chatInput.focus();
         });
     }
+
+    // 初始调整一次高度
+    autoResize();
+}
+
+let chatInitialized = false;
+function ensureChatInitialized() {
+    if (chatInitialized) return;
+    chatInitialized = true;
+    initChat();
 }
 
 async function toggleChatMessage(timestamp, text, done) {
@@ -565,33 +598,7 @@ function getRecentlyModifiedFiles(n) {
     return result;
 }
 
-chatInput.addEventListener('paste', async (e) => {
-    const items = e.clipboardData.items;
 
-    for (const item of items) {
-        if (item.kind === 'file' && item.type.startsWith('image/')) {
-            e.preventDefault();
-            const file = item.getAsFile();
-            const fileName = generateSafeFilename(file.name);
-
-            const saved = await writeMediaFile(fileName, file);
-            if (saved) {
-                const imageMarkdown = `![${fileName}](media/${fileName})\n`;
-
-                const cursorPos = chatInput.selectionStart;
-                const textBefore = chatInput.value.substring(0, cursorPos);
-                const textAfter = chatInput.value.substring(chatInput.selectionEnd);
-
-                chatInput.value = textBefore + imageMarkdown + textAfter;
-
-                const newCursorPos = cursorPos + imageMarkdown.length;
-                chatInput.setSelectionRange(newCursorPos, newCursorPos);
-                chatInput.focus();
-            }
-            break;
-        }
-    }
-});
 
 function todayJournalFilename() {
     const now = new Date();
@@ -978,6 +985,38 @@ function attachEventListeners() {
         });
     });
 
+    chat.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function (e) {
+            e.stopPropagation();
+            const selectedMessages = document.querySelectorAll('.message.selected');
+            let msgs = [];
+            let messagesToRemove = [];
+            if (selectedMessages.length > 0) {
+                msgs = Array.from(selectedMessages).map(msg => msg.querySelector('.message-content').textContent);
+                messagesToRemove = selectedMessages;
+            } else {
+                msgs = [btn.closest('.message').querySelector('.message-content').textContent];
+                messagesToRemove = [btn.closest('.message')];
+            }
+
+            const { messages } = await parseMessagesFromChat();
+            const msgSet = new Set(msgs);
+            const filteredMessages = messages.filter(msg => !msgSet.has(msg.text));
+            await saveMessagesToChat(filteredMessages);
+
+            messagesToRemove.forEach(message => {
+                message.classList.add('removing');
+                setTimeout(() => {
+                    message.remove();
+                }, 300);
+            });
+            setTimeout(() => {
+                renderMessages();
+            }, 500);
+            chatInput.focus();
+        });
+    });
+
     chat.querySelectorAll('.to-recent-btn').forEach(btn => {
         btn.addEventListener('click', async function (e) {
             e.stopPropagation();
@@ -1234,13 +1273,25 @@ async function renderMessages() {
                     <div class="btn-wrapper">
                         <button class="action-btn to-archive-btn" data-dir="archive">
                             <?xml version="1.0" encoding="utf-8"?>
-                                <svg width="32px" height="32px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="32px" height="32px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 8V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                <path d="M23 5H1V8H23V5Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                <path d="M10 12H14" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            </svg>
+                        </button>
+                        <span class="btn-label">To Archive</span>
+                    </div>
+
+                    <div class="btn-wrapper">
+                        <button class="action-btn delete-btn">
+                            <?xml version="1.0" encoding="utf-8"?>
+                            <svg width="32px" height="32px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M20.5001 7H3.5" stroke-width="1.5" stroke-linecap="round" fill="none"/>
                                 <path d="M18.8332 8.5L18.3732 15.3991C18.1962 18.054 18.1077 19.3815 17.2427 20.1907C16.3777 21 15.0473 21 12.3865 21H11.6132C8.95235 21 7.62195 21 6.75694 20.1907C5.89194 19.3815 5.80344 18.054 5.62644 15.3991L5.1665 8.5" stroke-width="1.5" stroke-linecap="round" fill="none"/>
                                 <path d="M6.5 6C6.55588 6 6.58382 6 6.60915 5.99936C7.43259 5.97849 8.15902 5.45491 8.43922 4.68032C8.44784 4.65649 8.45667 4.62999 8.47434 4.57697L8.57143 4.28571C8.65431 4.03708 8.69575 3.91276 8.75071 3.8072C8.97001 3.38607 9.37574 3.09364 9.84461 3.01877C9.96213 3 10.0932 3 10.3553 3H13.6447C13.9068 3 14.0379 3 14.1554 3.01877C14.6243 3.09364 15.03 3.38607 15.2493 3.8072C15.3043 3.91276 15.3457 4.03708 15.4286 4.28571L15.5257 4.57697C15.5433 4.62992 15.5522 4.65651 15.5608 4.68032C15.841 5.45491 16.5674 5.97849 17.3909 5.99936C17.4162 6 17.4441 6 17.5 6" stroke-width="1.5" fill="none"/>
                             </svg>
                         </button>
-                        <span class="btn-label">To Archive</span>
+                        <span class="btn-label">Delete</span>
                     </div>
                 </div>
             </div>

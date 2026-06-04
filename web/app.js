@@ -96,7 +96,7 @@ async function init() {
     files = await loadLocalFiles(rootDirHandle);
     log(`Files loaded in ${performance.now() - perf}ms`);
 
-    initChat();
+    ensureChatInitialized();
 
     perf = performance.now();
     renderSidebar();
