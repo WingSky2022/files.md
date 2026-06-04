@@ -140,11 +140,29 @@ config.json           用户配置
 4. **跨平台兼容**：文件名禁用 `:<>?*` 等特殊字符
 5. **本地优先**：数据不离开设备
 
+## AI 协作工作流
+
+沉淀自实际会话的协作模式与坑点：
+
+### 上下文紧张 → 子代理并行
+当上下文快满、且任务可拆分成独立文件时，派 `code-writer` 子代理并行执行，主代理只做协调 + grep 验证 + commit。子代理 prompt 指向 plan 文件作为 context 来源（如 `C:\Users\fyycb\.claude\plans\*.md`），**不要把整个会话历史塞给子代理**——子代理有独立 context window。代表案例：Plan C 用 2 个子代理分别实现 `lib/fs.js` 和 `chat.js`。
+
+### 提交消息：多 `-m` 形式
+PowerShell 环境下 here-string (`@'...'@`) 在 Bash tool 中会被字面化，commit 消息首尾会出现 `@` 装饰字符（无功能影响，纯展示瑕疵）。规避方法：用 `git commit -m "subject" -m "body1" -m "body2"` 多 `-m` 形式，git 自动加段落空行。
+
+### 历史清理：amend + rebase
+需要改旧 commit 消息（清掉装饰字符等）且**未推送**时：
+1. `git checkout <bad-commit>` (detach)
+2. `git commit --amend -m "new message"`
+3. `git rebase --onto <new-hash> <old-hash> <branch>` 对每个 dependent branch
+4. 重新 `git merge` 处理可能复现的 conflict
+
 ## 详细文档索引
 
 | 文档 | 内容 |
 |------|------|
 | [docs/frontend-pitfalls.md](docs/frontend-pitfalls.md) | 前端开发陷阱详解 |
 | [docs/chat-md-architecture.md](docs/chat-md-architecture.md) | Chat.md 架构与前后端数据现状 |
+| [docs/function-README.md](docs/function-README.md) | 当前已实现的功能说明（数据完整性 / 全局常驻 / 浮窗按钮 / Tab 管理） |
 | [docs/PR-index.md](docs/PR-index.md) | PR 历史索引 |
 | [README.md](README.md) | 用户文档、功能介绍、ADRs（架构决策记录） |

@@ -12,6 +12,7 @@ tests/playwright-report/
 .spec-workflow/
 CLAUDE.md
 docs/
+docs/function-README.md  # 显式标注（docs/ 已覆盖）
 
 # 临时文件与备份
 archive/
