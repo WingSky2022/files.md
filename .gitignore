@@ -12,3 +12,8 @@ tests/playwright-report/
 .spec-workflow/
 CLAUDE.md
 docs/
+
+# 临时文件与备份
+archive/
+chat-config.json
+*.zip
