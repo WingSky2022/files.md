@@ -40,16 +40,12 @@ async function loadChatConfig() {
 
 // Save chat tabs configuration
 async function saveChatConfig() {
-    try {
-        const config = {
-            tabs: chatTabs,
-            lastActiveTab: currentChatTab
-        };
-        const chatDirHandle = await getChatDirHandle();
-        await write(CHAT_CONFIG_PATH, JSON.stringify(config, null, 2), chatDirHandle);
-    } catch (err) {
-        logError('saveChatConfig error:', err);
-    }
+    const config = {
+        tabs: chatTabs,
+        lastActiveTab: currentChatTab
+    };
+    const chatDirHandle = await getChatDirHandle();
+    await write(CHAT_CONFIG_PATH, JSON.stringify(config, null, 2), chatDirHandle);
 }
 
 // Get current tab object
@@ -539,9 +535,13 @@ function scrollToBottom() {
 }
 
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function autoResize() {
