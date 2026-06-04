@@ -45,8 +45,8 @@ async function getFileHandle(path, create = false, rootDirHandle = null) {
     return fileHandle;
 }
 
-async function read(path) {
-    let fileHandle = await getFileHandle(path)
+async function read(path, rootDirHandle = null) {
+    let fileHandle = await getFileHandle(path, false, rootDirHandle);
     let file = await fileHandle.getFile();
 
     return await file.text();
@@ -57,6 +57,65 @@ async function write(path, content, rootDirHandle = null) {
     const writable = await fileHandle.createWritable();
     await writable.write(content);
     await writable.close();
+}
+
+/**
+ * Move a file within its parent directory. Used for atomic rename of
+ * <path>.tmp → <path>. Throws InvalidModificationError if dst exists.
+ * Caller is expected to remove dst first if overwrite is desired.
+ */
+async function move(srcPath, dstPath, rootDirHandle = null) {
+    // resolve dst parent
+    const lastSlash = dstPath.lastIndexOf('/');
+    const dirPath = lastSlash >= 0 ? dstPath.slice(0, lastSlash) : '';
+    const dstName = lastSlash >= 0 ? dstPath.slice(lastSlash + 1) : dstPath;
+
+    let parent = rootDirHandle || await getRootDirHandle();
+    if (dirPath) {
+        for (const seg of dirPath.split('/')) {
+            if (seg) parent = await parent.getDirectoryHandle(seg);
+        }
+    }
+
+    // resolve src handle (must already exist)
+    let srcHandle = await getFileHandle(srcPath, false, rootDirHandle);
+
+    // FileSystemFileHandle.move() — same-parent rename, atomic on POSIX
+    await srcHandle.move(dstName);
+}
+
+/**
+ * Atomic file replace: write to <path>.tmp, then remove <path> and
+ * rename .tmp → <path>. On Chromium this is implemented as a single
+ * POSIX rename(2) and is atomic with respect to process death.
+ *
+ * On any failure, .tmp is left on disk for inspection. The next
+ * successful call will overwrite it.
+ */
+async function writeAtomic(path, content, rootDirHandle = null) {
+    const tmpPath = path + '.tmp';
+    await write(tmpPath, content, rootDirHandle);  // throws on failure
+
+    const lastSlash = path.lastIndexOf('/');
+    const dirPath = lastSlash >= 0 ? path.slice(0, lastSlash) : '';
+    const name = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+
+    let parent = rootDirHandle || await getRootDirHandle();
+    if (dirPath) {
+        for (const seg of dirPath.split('/')) {
+            if (seg) parent = await parent.getDirectoryHandle(seg);
+        }
+    }
+
+    // Per spec, move() throws if dest exists. remove first (NotFoundError is fine).
+    try {
+        await parent.removeEntry(name);
+    } catch (err) {
+        if (err.name !== 'NotFoundError') throw err;
+    }
+
+    const tmpHandle = await parent.getFileHandle(name + '.tmp');
+    await tmpHandle.move(name);
 }
 
 async function writeAtEnd(path, content) {

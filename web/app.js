@@ -994,7 +994,32 @@ async function updateSettingsPanel() {
             // ignore permission errors
         }
     }
-    display.textContent = 'Using current project folder';
+    // No saved handle OR permission not granted: show default absolute path
+    display.textContent = getDefaultChatDirPath();
+}
+
+/**
+ * Compute the default Chat Database absolute path from window.location.
+ * Assumes the app is served from <root>/web/index.html, so the default
+ * chat directory is <root>/ChatDatabase.
+ */
+function getDefaultChatDirPath() {
+    try {
+        const url = new URL(window.location.href);
+        const pathParts = url.pathname.split('/').filter(p => p);
+        // Remove trailing 'index.html' and 'web' to get the root
+        pathParts.pop(); // 'index.html'
+        pathParts.pop(); // 'web'
+        const root = pathParts.length > 0 ? '/' + pathParts.join('/') : '';
+        const defaultPath = root + '/ChatDatabase';
+        // Reconstruct full URL/path (preserves file:// vs http(s)://)
+        if (url.protocol === 'file:') {
+            return url.protocol + '//' + defaultPath;
+        }
+        return url.origin + defaultPath;
+    } catch (e) {
+        return 'ChatDatabase';
+    }
 }
 
 async function chooseChatDirectory() {

@@ -8,6 +8,9 @@ const chatInputWrapper = document.getElementById('chat-input-wrapper');
 const MAX_TITLE_LENGTH = 100;
 const RECENT_FILES = 1;
 const CHAT_CONFIG_PATH = 'chat-config.json';
+const CHAT_CONFIG_PATH_TMP = 'chat-config.json.tmp';
+const CHAT_CONFIG_PATH_BAK = 'chat-config.json.bak';
+const CHAT_CONFIG_SCHEMA_VERSION = 1;
 
 // Cache of the last rendered messages JSON. renderMessages skips
 // work when the messages haven't changed.
@@ -20,32 +23,132 @@ let pendingCloseTab = null; // Tab pending confirmation to close
 
 // Load chat tabs configuration
 async function loadChatConfig() {
+    const chatDirHandle = await getChatDirHandle();
+
+    // Attempt 1: read main file
+    let config = null;
+    let mainErr = null;
     try {
-        const chatDirHandle = await getChatDirHandle();
-        const handle = await getFileHandle(CHAT_CONFIG_PATH, true, chatDirHandle);
-        const file = await handle.getFile();
-        const content = await file.text();
-        const config = JSON.parse(content);
-        chatTabs = config.tabs || [];
-        currentChatTab = config.lastActiveTab || 'Chat';
+        const text = await read(CHAT_CONFIG_PATH, chatDirHandle);
+        const parsed = JSON.parse(text);
+        config = migrateConfig(parsed);
     } catch (err) {
-        // Initialize default config
-        chatTabs = [
-            { name: 'Chat', messages: [] }
-        ];
-        currentChatTab = 'Chat';
-        await saveChatConfig();
+        mainErr = err;
     }
+
+    if (config !== null) {
+        chatTabs = config.tabs;
+        currentChatTab = config.lastActiveTab;
+        return;
+    }
+
+    // No-file (NotFoundError) is a fresh install — silent, no toast
+    if (mainErr && mainErr.name === 'NotFoundError') {
+        chatTabs = [{ name: 'Chat', messages: [] }];
+        currentChatTab = 'Chat';
+        await saveChatConfigAtomic();
+        return;
+    }
+
+    // Attempt 2: recover from .bak
+    let backupConfig = null;
+    let backupErr = null;
+    try {
+        const text = await read(CHAT_CONFIG_PATH_BAK, chatDirHandle);
+        backupConfig = migrateConfig(JSON.parse(text));
+    } catch (err) {
+        backupErr = err;
+    }
+
+    if (backupConfig !== null) {
+        // Quarantine the corrupt main file (best-effort, user-confirmed strategy)
+        try {
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const corruptHandle = await chatDirHandle.getFileHandle(CHAT_CONFIG_PATH);
+            await corruptHandle.move(`chat-config.json.corrupt-${stamp}`);
+        } catch (qErr) {
+            logError('loadChatConfig: quarantine failed:', qErr);
+        }
+
+        chatTabs = backupConfig.tabs;
+        currentChatTab = backupConfig.lastActiveTab;
+        showToast('Chat config was corrupted - restored from backup', 5000);
+        logError('loadChatConfig: recovered from .bak. mainErr=', mainErr);
+        // Persist recovered state so a subsequent crash doesn't depend on .bak forever
+        await saveChatConfigAtomic();
+        return;
+    }
+
+    // Attempt 3: both unreadable
+    chatTabs = [{ name: 'Chat', messages: [] }];
+    currentChatTab = 'Chat';
+    showToast('Chat config is unrecoverable - starting fresh', 5000);
+    logError('loadChatConfig: both main and .bak unreadable. mainErr=', mainErr, 'backupErr=', backupErr);
+    await saveChatConfigAtomic();
 }
 
-// Save chat tabs configuration
-async function saveChatConfig() {
-    const config = {
-        tabs: chatTabs,
-        lastActiveTab: currentChatTab
-    };
+// Save chat tabs configuration (atomic, with .bak promotion) moved below.
+
+/**
+ * Idempotent. Bring any parsed config up to CHAT_CONFIG_SCHEMA_VERSION.
+ * Add new < v < 2 cases here when bumping the constant.
+ */
+function migrateConfig(config) {
+    let v = config.schemaVersion ?? 0;  // absent field = legacy v0
+    if (v < 1) {
+        // v0 → v1: defaults for fields that may be missing
+        config.tabs = config.tabs || [];
+        config.lastActiveTab = config.lastActiveTab || (config.tabs[0]?.name ?? 'Chat');
+        v = 1;
+    }
+    config.schemaVersion = CHAT_CONFIG_SCHEMA_VERSION;
+    return config;
+}
+
+/**
+ * Atomic save with .bak promotion. Writes to .tmp first, then renames
+ * over the target. On success, the previous good content is promoted
+ * to .bak (single-slot). On any failure, .tmp is left on disk for
+ * inspection and a toast is shown to the user.
+ */
+async function saveChatConfigAtomic() {
     const chatDirHandle = await getChatDirHandle();
-    await write(CHAT_CONFIG_PATH, JSON.stringify(config, null, 2), chatDirHandle);
+
+    let newContent;
+    try {
+        newContent = JSON.stringify({
+            schemaVersion: CHAT_CONFIG_SCHEMA_VERSION,
+            tabs: chatTabs,
+            lastActiveTab: currentChatTab,
+        }, null, 2);
+    } catch (err) {
+        logError('saveChatConfigAtomic: JSON.stringify failed:', err);
+        showToast('Chat save failed - data not serializable', 3000);
+        return;
+    }
+
+    try {
+        // 1) Read current target for backup promotion. Best-effort.
+        let previousGood = null;
+        try {
+            previousGood = await read(CHAT_CONFIG_PATH, chatDirHandle);
+        } catch (e) { /* first write or unreadable */ }
+
+        // 2) Atomic replace of target.
+        await writeAtomic(CHAT_CONFIG_PATH, newContent, chatDirHandle);
+
+        // 3) Promote previous good to .bak. Failure here doesn't roll back.
+        if (previousGood !== null) {
+            try {
+                await writeAtomic(CHAT_CONFIG_PATH_BAK, previousGood, chatDirHandle);
+            } catch (err) {
+                logError('saveChatConfigAtomic: .bak update failed:', err);
+            }
+        }
+    } catch (err) {
+        logError('saveChatConfigAtomic error:', err);
+        showToast('Chat save failed - check console', 3000);
+    }
 }
 
 // Get current tab object
@@ -68,7 +171,7 @@ async function saveMessagesToChat(messages) {
     const tab = getCurrentTab();
     if (tab) {
         tab.messages = messages;
-        await saveChatConfig();
+        await saveChatConfigAtomic();
         lastChatText = JSON.stringify(messages);
     }
 }
@@ -116,7 +219,7 @@ async function sendToChat() {
         date: new Date().toDateString()
     });
     
-    await saveChatConfig();
+    await saveChatConfigAtomic();
 
     chatInput.value = '';
     chatIsClean = false;
@@ -197,7 +300,7 @@ async function switchChatTab(tabName) {
     if (currentChatTab === tabName) return;
     
     currentChatTab = tabName;
-    await saveChatConfig();
+    await saveChatConfigAtomic();
     renderChatTabs();
     await renderMessages();
     scrollToBottom();
@@ -221,7 +324,7 @@ async function addNewChatTab() {
     
     chatTabs.push(newTab);
     currentChatTab = newName;
-    await saveChatConfig();
+    await saveChatConfigAtomic();
     renderChatTabs();
     await renderMessages();
     scrollToBottom();
@@ -255,7 +358,7 @@ async function closeChatTab(tabName) {
             if (currentChatTab === tabToClose) {
                 currentChatTab = 'Chat';
             }
-            await saveChatConfig();
+            await saveChatConfigAtomic();
             renderChatTabs();
             await renderMessages();
             scrollToBottom();
@@ -325,7 +428,7 @@ function attachTabEventListeners() {
                         if (currentChatTab === oldName) {
                             currentChatTab = newName;
                         }
-                        await saveChatConfig();
+                        await saveChatConfigAtomic();
                         renderChatTabs();
                     }
                 } else {
@@ -395,7 +498,7 @@ function attachTabEventListeners() {
             });
             chatTabs = reordered;
             
-            await saveChatConfig();
+            await saveChatConfigAtomic();
         });
         
         // Close button
@@ -524,7 +627,7 @@ async function toggleChatMessage(timestamp, text, done) {
     const msg = tab.messages.find(m => m.text === text && m.timestamp === timestamp);
     if (msg) {
         msg.done = done;
-        await saveChatConfig();
+        await saveChatConfigAtomic();
     }
 }
 
