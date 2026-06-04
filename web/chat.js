@@ -919,12 +919,56 @@ function attachEventListeners() {
             const el = btn.closest('.message');
             el.classList.toggle('completed');
             const done = el.classList.contains('completed');
-            try {
-                await toggleChatMessage(el.dataset.timestamp, el.dataset.text, done);
-            } catch (err) {
-                logError('Failed to toggle chat line:', err);
-                el.classList.toggle('completed'); // revert
+
+            // FLIP: record First positions before any changes
+            const firstRects = {};
+            chat.querySelectorAll('.message').forEach(msg => {
+                const key = msg.dataset.timestamp + '::' + msg.dataset.text;
+                firstRects[key] = msg.getBoundingClientRect();
+            });
+
+            // Update in-memory data immediately (skip disk I/O for instant response)
+            const tab = getCurrentTab();
+            const target = tab.messages.find(m => m.text === el.dataset.text && m.timestamp === el.dataset.timestamp);
+            if (target) {
+                target.done = done;
+                target.doneAt = done ? Date.now() : undefined;
             }
+
+            // Force re-render (bypass cache)
+            lastChatText = null;
+            await renderMessages();
+
+            // Suppress slideIn animation on ALL messages to prevent flash
+            chat.querySelectorAll('.message').forEach(msg => {
+                msg.style.animation = 'none';
+            });
+
+            // FLIP: animate only messages that actually moved
+            chat.querySelectorAll('.message').forEach(msg => {
+                const key = msg.dataset.timestamp + '::' + msg.dataset.text;
+                const first = firstRects[key];
+                if (!first) return;
+                const last = msg.getBoundingClientRect();
+                const deltaY = first.top - last.top;
+                if (Math.abs(deltaY) < 2) return;
+                msg.style.transform = `translateY(${deltaY}px)`;
+                msg.style.transition = 'none';
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        msg.style.transition = 'transform 0.3s ease';
+                        msg.style.transform = '';
+                        msg.addEventListener('transitionend', function handler() {
+                            msg.style.transform = '';
+                            msg.style.transition = '';
+                            msg.removeEventListener('transitionend', handler);
+                        });
+                    });
+                });
+            });
+
+            // Save to disk in background (fire-and-forget)
+            saveChatConfigAtomic().catch(err => logError('Failed to save chat config:', err));
         });
     });
 
