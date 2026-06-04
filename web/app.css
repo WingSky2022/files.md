@@ -503,6 +503,13 @@ button svg circle {
     stroke:  var(--col-tx) !important;
 }
 
+/* Settings (gear) icon: 1px smaller than the other toolbar buttons
+   (which use width/height="22" in HTML). */
+#settings-btn svg {
+    width: 21px;
+    height: 21px;
+}
+
 /* New-file icon: stroked rather than filled to match the other toolbar
    icons. SVG uses stroke="currentColor" so color drives the line color;
    nudge up 2px so it lines up with the folder/random-file icons that
