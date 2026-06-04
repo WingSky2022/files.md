@@ -627,6 +627,7 @@ async function toggleChatMessage(timestamp, text, done) {
     const msg = tab.messages.find(m => m.text === text && m.timestamp === timestamp);
     if (msg) {
         msg.done = done;
+        msg.doneAt = done ? Date.now() : undefined;
         await saveChatConfigAtomic();
     }
 }
@@ -1268,14 +1269,23 @@ async function renderMessages() {
         return;
     }
     lastChatText = text;
-    log(`Loaded ${messages.length} messages from tab: ${currentChatTab}`);
+    // Sort: completed messages first (FIFO by doneAt), then uncompleted in original order
+    const completed = messages.filter(m => m.done).sort((a, b) => {
+        const aTime = a.doneAt || a.timestamp || 0;
+        const bTime = b.doneAt || b.timestamp || 0;
+        return aTime - bTime;
+    });
+    const uncompleted = messages.filter(m => !m.done);
+    const sorted = [...completed, ...uncompleted];
 
-    if (messages.length === 0) {
+    log(`Loaded ${sorted.length} messages from tab: ${currentChatTab}`);
+
+    if (sorted.length === 0) {
         chat.innerHTML = `
             <div class="empty-state">
                 <img class="empty-icon" src="img/icon.png" alt="">
                 <div class="empty-title">Free your head</div>
-                <div class="empty-desc">Drop whatever’s on your mind here</div>
+                <div class="empty-desc">Drop whatever's on your mind here</div>
             </div>
         `;
         return;
@@ -1292,7 +1302,7 @@ async function renderMessages() {
     `).join('');
 
     // add own class every other message
-    chat.innerHTML = messages.map((message, i) => `
+    chat.innerHTML = sorted.map((message, i) => `
         <div class="message ${i % 2 === 1 ? 'own' : ''}${message.done ? ' completed' : ''}" data-text="${escapeHtml(message.text)}" data-timestamp="${message.timestamp}">
             <button class="complete-btn" title="Mark as done">
                 <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">

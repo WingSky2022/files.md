@@ -983,19 +983,35 @@ function toggleSettingsPanel() {
 async function updateSettingsPanel() {
     const display = document.getElementById('chat-dir-display');
     const savedHandle = await getSavedChatDirectoryHandle();
+    display.removeAttribute('title');
+
     if (savedHandle instanceof FileSystemDirectoryHandle) {
         try {
             const permission = await savedHandle.queryPermission({ mode: 'readwrite' });
             if (permission === 'granted') {
                 display.textContent = savedHandle.name;
+                display.title = '自定义目录: ' + savedHandle.name + '（浏览器限制无法显示完整路径）';
                 return;
             }
+            // Permission lost — still show chosen name with warning
+            display.textContent = savedHandle.name + ' (权限已丢失，点击 Choose folder 重新授权)';
+            display.title = '自定义目录: ' + savedHandle.name + '（权限已丢失）';
+            return;
         } catch (e) {
-            // ignore permission errors
+            // Permission query failed — still show chosen name
+            display.textContent = savedHandle.name + ' (权限未知)';
+            display.title = '自定义目录: ' + savedHandle.name;
+            return;
         }
     }
-    // No saved handle OR permission not granted: show default absolute path
-    display.textContent = getDefaultChatDirPath();
+    // No saved handle (default / reset): show project folder name
+    try {
+        const rootHandle = await getRootDirHandle();
+        display.textContent = rootHandle.name;
+        display.title = '当前项目文件夹: ' + rootHandle.name;
+    } catch (e) {
+        display.textContent = '(未知)';
+    }
 }
 
 /**
