@@ -1048,17 +1048,18 @@ async function chooseChatDirectory() {
         }
         return;
     }
+    if (!dirHandle) return;
     await saveChatDirectoryHandle(dirHandle);
     await updateSettingsPanel();
-    // Reload chat config from the new location
     await loadChatConfig();
     await renderMessages();
+    document.getElementById('settings-panel').style.display = 'none';
 }
 
 async function resetChatDirectory() {
     await removeSavedChatDirectoryHandle();
     await updateSettingsPanel();
-    // Reload chat config from the project folder
     await loadChatConfig();
     await renderMessages();
+    document.getElementById('settings-panel').style.display = 'none';
 }
