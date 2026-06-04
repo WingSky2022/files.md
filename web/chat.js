@@ -21,7 +21,8 @@ let pendingCloseTab = null; // Tab pending confirmation to close
 // Load chat tabs configuration
 async function loadChatConfig() {
     try {
-        const handle = await getFileHandle(CHAT_CONFIG_PATH, true);
+        const chatDirHandle = await getChatDirHandle();
+        const handle = await getFileHandle(CHAT_CONFIG_PATH, true, chatDirHandle);
         const file = await handle.getFile();
         const content = await file.text();
         const config = JSON.parse(content);
@@ -44,7 +45,8 @@ async function saveChatConfig() {
             tabs: chatTabs,
             lastActiveTab: currentChatTab
         };
-        await write(CHAT_CONFIG_PATH, JSON.stringify(config, null, 2));
+        const chatDirHandle = await getChatDirHandle();
+        await write(CHAT_CONFIG_PATH, JSON.stringify(config, null, 2), chatDirHandle);
     } catch (err) {
         logError('saveChatConfig error:', err);
     }

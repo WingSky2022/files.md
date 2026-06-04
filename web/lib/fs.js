@@ -12,7 +12,7 @@ function findForbiddenChar(name) {
     return null;
 }
 
-async function getFileHandle(path, create = false) {
+async function getFileHandle(path, create = false, rootDirHandle = null) {
     let dir, filename;
     if (path.includes('/')) {
         const parts = path.split('/');
@@ -24,7 +24,7 @@ async function getFileHandle(path, create = false) {
     }
 
     const dirs = dir.split('/');
-    let currentDirHandle = await getRootDirHandle();
+    let currentDirHandle = rootDirHandle || await getRootDirHandle();
     for (const dirName of dirs) {
         if (dirName) {
             try {
@@ -52,8 +52,8 @@ async function read(path) {
     return await file.text();
 }
 
-async function write(path, content) {
-    let fileHandle = await getFileHandle(path, true);
+async function write(path, content, rootDirHandle = null) {
+    let fileHandle = await getFileHandle(path, true, rootDirHandle);
     const writable = await fileHandle.createWritable();
     await writable.write(content);
     await writable.close();

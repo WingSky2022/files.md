@@ -438,6 +438,59 @@ async function getRootDirHandle() {
     return savedDirHandle;
 }
 
+async function saveChatDirectoryHandle(directoryHandle) {
+    const db = await initDB();
+    const transaction = db.transaction('handles', 'readwrite');
+    const store = transaction.objectStore('handles');
+    await store.put(directoryHandle, 'savedChatDirectoryHandle');
+}
+
+async function getSavedChatDirectoryHandle() {
+    const db = await initDB();
+    const tx = db.transaction("handles", "readonly");
+    const store = tx.objectStore("handles");
+
+    return new Promise((resolve, reject) => {
+        const req = store.get("savedChatDirectoryHandle");
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+        tx.onabort = () => reject(tx.error || new Error("Transaction aborted"));
+    });
+}
+
+async function removeSavedChatDirectoryHandle() {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction('handles', 'readwrite');
+        const store = transaction.objectStore('handles');
+        const request = store.delete('savedChatDirectoryHandle');
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function getChatDirHandle() {
+    const savedChatDirHandle = await getSavedChatDirectoryHandle();
+    if (!(savedChatDirHandle instanceof FileSystemDirectoryHandle)) {
+        return await getRootDirHandle();
+    }
+    // Verify permission is still granted; if not, fall back to project root.
+    try {
+        const permission = await savedChatDirHandle.queryPermission({ mode: 'readwrite' });
+        if (permission === 'granted') {
+            return savedChatDirHandle;
+        }
+        // Try to re-request permission once.
+        const newPermission = await savedChatDirHandle.requestPermission({ mode: 'readwrite' });
+        if (newPermission === 'granted') {
+            return savedChatDirHandle;
+        }
+    } catch (e) {
+        logError('Chat directory permission error:', e);
+    }
+    return await getRootDirHandle();
+}
+
 const resizeHandle = document.querySelector('.resize');
 let isResizing = false;
 resizeHandle.addEventListener('mousedown', initResize);
@@ -914,3 +967,57 @@ window.saver = setInterval(() => {
         syncCurrentFile();
     }
 }, CURRENT_FILE_SYNC_INTERVAL);
+
+// Settings panel -----------------------------------------------------------
+
+function toggleSettingsPanel() {
+    const panel = document.getElementById('settings-panel');
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        updateSettingsPanel();
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+async function updateSettingsPanel() {
+    const display = document.getElementById('chat-dir-display');
+    const savedHandle = await getSavedChatDirectoryHandle();
+    if (savedHandle instanceof FileSystemDirectoryHandle) {
+        try {
+            const permission = await savedHandle.queryPermission({ mode: 'readwrite' });
+            if (permission === 'granted') {
+                display.textContent = savedHandle.name;
+                return;
+            }
+        } catch (e) {
+            // ignore permission errors
+        }
+    }
+    display.textContent = 'Using current project folder';
+}
+
+async function chooseChatDirectory() {
+    let dirHandle = null;
+    try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch (error) {
+        if (error instanceof TypeError) {
+            alert('For now only Chrome browser supports local folders :(');
+        }
+        return;
+    }
+    await saveChatDirectoryHandle(dirHandle);
+    await updateSettingsPanel();
+    // Reload chat config from the new location
+    await loadChatConfig();
+    await renderMessages();
+}
+
+async function resetChatDirectory() {
+    await removeSavedChatDirectoryHandle();
+    await updateSettingsPanel();
+    // Reload chat config from the project folder
+    await loadChatConfig();
+    await renderMessages();
+}

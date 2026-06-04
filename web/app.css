@@ -596,6 +596,83 @@ button svg circle {
     z-index: 10;
 }
 
+/* Settings panel overlay */
+#settings-panel {
+    position: fixed;
+    top: 40px;
+    right: 16px;
+    width: 320px;
+    background: var(--col-bg-alt);
+    border: 1px solid var(--col-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    padding: 16px;
+    font-size: 14px;
+    color: var(--col-tx);
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--col-border);
+}
+
+.settings-header button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--col-tx-alt);
+    padding: 0 4px;
+}
+
+.settings-header button:hover {
+    color: var(--col-tx);
+}
+
+.settings-item label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--col-tx);
+}
+
+.settings-value {
+    background: var(--col-bg);
+    border: 1px solid var(--col-border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--col-tx-alt);
+    word-break: break-all;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.settings-actions button {
+    flex: 1;
+    background: var(--col-bg);
+    border: 1px solid var(--col-border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--col-tx);
+}
+
+.settings-actions button:hover {
+    background: var(--col-bg-active);
+}
 
 body.dragging {
     user-select: none;
