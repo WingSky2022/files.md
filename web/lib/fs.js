@@ -128,6 +128,12 @@ async function remove(path) {
 async function rename(oldpath, newpath) {
     let content = await read(oldpath)
     await write(newpath, content)
+    addMemFile(newpath, {
+        isFile: true,
+        content: content,
+        lastModified: 0,
+        path: newpath,
+    });
     await remove(oldpath)
 }
 
