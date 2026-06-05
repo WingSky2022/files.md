@@ -1,5 +1,5 @@
-@media (prefers-color-scheme: light) {
-:root {
+/* PATCHED: @media (prefers-color-scheme: light) → html[data-theme="light"] attribute driven (manual theme toggle); inner @media flattened */
+html[data-theme="light"] {
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     --font-mono-brutal: ui-monospace, SFMono-Regular, "Cascadia Code", "IBM Plex Mono", "Roboto Mono", "DejaVu Sans Mono", "Liberation Mono", Menlo, Monaco, "Consolas", "Source Code Pro", monospace;
     --color-neo-bg: #F4F4F0;
@@ -31,122 +31,117 @@
    { background-image: none }` rule can still cancel the image when the
    cursor is on the line - otherwise you'd see both the graphic AND the
    raw `- [ ]` text on the active line. */
-.cm-s-hypermd-light span.cm-formatting-task.hmd-hidden-token {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-formatting-task.hmd-hidden-token {
     background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAwCAMAAAA8VkqRAAAAclBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACa4vOeAAAAJXRSTlMADcjpDswcLZOzsvOYBvWdbtvTX0D69+ORa1dRJCDtuaF7ZDkoQyuUXgAAAMhJREFUOMvt0reywjAUhOFjKxmcrgMZboL//V8Rm6GwkNUx0LClvhkVZ1fEZoqHqMwO7wuUSb0YxcJKxtLpxIt2SzJRykkQp5RgdAjaIKRJCEn6gWdA9OzRoqLVRscQnc9bdtXX/eyurOF7N3erLVDPwCGHxoVwamH1LwGUBfBbhrCvoLlMitL9DY8trLtJg7qoCj18VAN1OYE/YJBuDe1RJtBVo5wbqPb+GL5yWG1GLX0YZYw5iQ93yQ/yAHfZzu5qt/mxr97VFS15JGSVM0C6AAAAAElFTkSuQmCC") !important;
     filter: brightness(0) saturate(100%) invert(28%) sepia(96%) saturate(3700%) hue-rotate(225deg) brightness(100%) contrast(101%);
 }
 
-@media (prefers-color-scheme: light) {
-    :root {
-        /* explicit empty: unconditional :root above already covers light. */
-    }
-
-    #toolbar {
-        padding-bottom: 8px !important;
-    }
-
-    #toolbar svg {
-        stroke: var(--col-tx-alt) !important;
-    }
-
-    #toolbar button:hover svg {
-        border-radius: 0;
-        stroke: var(--color-neo-orange) !important;
-    }
-
-    #close-chat, #fullscreen-chat {
-        color: var(--col-tx-alt) !important;
-    }
-
-    #open-chat-modal:hover svg {
-       stroke: var(--col-accent) !important;
-    }
-
-    #close-chat:hover, #fullscreen-chat:hover {
-        color: var(--color-neo-orange) !important;
-    }
-
-    #open-chat-modal svg {
-        stroke: #F5F5F5 !important;
-    }
-
-    #close-sidebar, #close-editor2, #go-forward svg, #go-backward svg {
-        color: var(--col-tx-alt) !important;
-        stroke: var(--col-tx-alt) !important;
-    }
-
-    #close-sidebar:hover {
-        color: var(--color-neo-orange) !important;
-        stroke: var(--color-neo-orange) !important;
-    }
-
-    #close-editor2:hover, #go-forward:hover svg, #go-backward:hover svg {
-        color: var(--color-neo-orange) !important;
-        stroke: var(--color-neo-orange) !important;
-    }
-
-    /* The `×` glyph in Space Mono sits high in its line-box, so it
-       visually lifts off the arrow row in light mode. In dark mode it
-       already looks fine because theme-dark.css overrides --font back
-       to system-ui (loads after brutal-dark). Match that by forcing a
-       sans-serif on the button only - so the glyph renders at a
-       natural baseline regardless of body font. */
-    #close-editor2 {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-    }
-
-    #open-sidebar {
-        background: var(--col-bg-alt);
-    }
-
-    .message.own {
-        background: color-mix(in srgb, var(--col-bg) 60%, transparent);
-    }
+/* --- Flattened from inner @media (prefers-color-scheme: light) --- */
+html[data-theme="light"] #toolbar {
+    padding-bottom: 8px !important;
 }
 
-.to-recent-btn,
-.action-btn svg {
+html[data-theme="light"] #toolbar svg {
+    stroke: var(--col-tx-alt) !important;
+}
+
+html[data-theme="light"] #toolbar button:hover svg {
+    border-radius: 0;
+    stroke: var(--color-neo-orange) !important;
+}
+
+html[data-theme="light"] #close-chat,
+html[data-theme="light"] #fullscreen-chat {
+    color: var(--col-tx-alt) !important;
+}
+
+html[data-theme="light"] #open-chat-modal:hover svg {
+   stroke: var(--col-accent) !important;
+}
+
+html[data-theme="light"] #close-chat:hover,
+html[data-theme="light"] #fullscreen-chat:hover {
+    color: var(--color-neo-orange) !important;
+}
+
+html[data-theme="light"] #open-chat-modal svg {
+    stroke: #F5F5F5 !important;
+}
+
+html[data-theme="light"] #close-sidebar,
+html[data-theme="light"] #close-editor2,
+html[data-theme="light"] #go-forward svg,
+html[data-theme="light"] #go-backward svg {
+    color: var(--col-tx-alt) !important;
+    stroke: var(--col-tx-alt) !important;
+}
+
+html[data-theme="light"] #close-sidebar:hover {
+    color: var(--color-neo-orange) !important;
+    stroke: var(--color-neo-orange) !important;
+}
+
+html[data-theme="light"] #close-editor2:hover,
+html[data-theme="light"] #go-forward:hover svg,
+html[data-theme="light"] #go-backward:hover svg {
+    color: var(--color-neo-orange) !important;
+    stroke: var(--color-neo-orange) !important;
+}
+
+/* The `×` glyph in Space Mono sits high in its line-box, so it visually
+   lifts off the arrow row in light mode. Force a sans-serif on the button
+   only so the glyph renders at a natural baseline regardless of body font. */
+html[data-theme="light"] #close-editor2 {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+html[data-theme="light"] #open-sidebar {
+    background: var(--col-bg-alt);
+}
+
+html[data-theme="light"] .message.own {
+    background: color-mix(in srgb, var(--col-bg) 60%, transparent);
+}
+/* --- End flattened inner @media --- */
+
+html[data-theme="light"] .to-recent-btn,
+html[data-theme="light"] .action-btn svg {
     fill: var(--col-tx-alt);
     color: var(--col-tx-alt) !important;
     stroke: var(--col-tx-alt) !important;
 }
-.to-recent-btn:hover,
-.action-btn:hover svg {
+html[data-theme="light"] .to-recent-btn:hover,
+html[data-theme="light"] .action-btn:hover svg {
     fill: var(--col-accent);
     color: var(--col-accent) !important;
     stroke: var(--col-accent) !important;
 }
 
-.cm-s-hypermd-light .cm-header.cm-header-1 {
+html[data-theme="light"] .cm-s-hypermd-light .cm-header.cm-header-1 {
     font-size: 32px !important;
     line-height: 38px !important;
     font-weight: 700 !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-1 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-1 {
     padding-top: 18px !important;
     padding-bottom: 0 !important;
 }
 
-.cm-s-hypermd-light .CodeMirror-code > pre.HyperMD-header.HyperMD-header-1:first-child,
-.cm-s-hypermd-light .CodeMirror-code > :first-child pre.HyperMD-header.HyperMD-header-1 {
+html[data-theme="light"] .cm-s-hypermd-light .CodeMirror-code > pre.HyperMD-header.HyperMD-header-1:first-child,
+html[data-theme="light"] .cm-s-hypermd-light .CodeMirror-code > :first-child pre.HyperMD-header.HyperMD-header-1 {
     padding-top: 0 !important;
 }
 
-/* Keep the breathing room after the first H1 (what the underline used to
-   reserve), but no visible rule. Subsequent H1s stay tight. */
-.cm-s-hypermd-light .CodeMirror-code pre.HyperMD-header.HyperMD-header-1:nth-child(1 of pre.HyperMD-header.HyperMD-header-1) {
+html[data-theme="light"] .cm-s-hypermd-light .CodeMirror-code pre.HyperMD-header.HyperMD-header-1:nth-child(1 of pre.HyperMD-header.HyperMD-header-1) {
     padding-bottom: 16px !important;
 }
 
-/* A header that sits immediately after the first H1 (no blank line between)
-   uses only the H1's bottom padding for separation - drop its own top
-   padding so the two don't stack into an oversized gap. */
-.cm-s-hypermd-light .CodeMirror-code pre.HyperMD-header.HyperMD-header-1:nth-child(1 of pre.HyperMD-header.HyperMD-header-1) + pre.HyperMD-header {
+html[data-theme="light"] .cm-s-hypermd-light .CodeMirror-code pre.HyperMD-header.HyperMD-header-1:nth-child(1 of pre.HyperMD-header.HyperMD-header-1) + pre.HyperMD-header {
     padding-top: 0 !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-2 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-2 {
     padding-top: 18px !important;
     padding-bottom: 6px !important;
     font-size: 24px !important;
@@ -154,7 +149,7 @@
     font-weight: 700 !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-3 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-3 {
     padding-top: 16px !important;
     padding-bottom: 5px !important;
     font-size: 22px !important;
@@ -162,7 +157,7 @@
     font-weight: 700 !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-4 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-4 {
     padding-top: 14px !important;
     padding-bottom: 4px !important;
     font-size: 20px !important;
@@ -170,7 +165,7 @@
     font-weight: 700 !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-5 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-5 {
     padding-top: 12px;
     padding-bottom: 4px;
     font-size: 18px;
@@ -178,7 +173,7 @@
     font-weight: 700 !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-6 .cm-header-6 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-header.HyperMD-header-6 .cm-header-6 {
     padding-top: 12px;
     padding-bottom: 4px;
     font-size: 16px;
@@ -186,43 +181,43 @@
     line-height: 22px;
 }
 
-.cm-s-hypermd-light .cm-header {
+html[data-theme="light"] .cm-s-hypermd-light .cm-header {
     font-family: 'Inter', sans-serif !important;
     font-weight: 700;
     letter-spacing: 0.02em;
 }
 
-.cm-s-hypermd-light .cm-strong, .cm-s-hypermd-light span.cm-url {
+html[data-theme="light"] .cm-s-hypermd-light .cm-strong,
+html[data-theme="light"] .cm-s-hypermd-light span.cm-url {
     font-family: var(--font) !important;
     font-weight: 400;
 }
 
-.cm-s-hypermd-light span.cm-formatting-list-ol {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-formatting-list-ol {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     color: var(--color-neo-blue) !important;
     font-weight: 700 !important;
 }
 
-.cm-formatting-list-ul {
+html[data-theme="light"] .cm-formatting-list-ul {
     color: var(--color-neo-blue) !important;
 }
 
-/* Heavy bold - brutalist emphasis. */
-.cm-s-hypermd-light .cm-strong {
+html[data-theme="light"] .cm-s-hypermd-light .cm-strong {
     font-weight: 800;
 }
 
-.cm-s-hypermd-light pre.HyperMD-list-line {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-list-line {
     padding-top: 0 !important;
 }
 
-.cm-s-hypermd-light span.cm-url:not(.cm-string) {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-url:not(.cm-string) {
     color: var(--col-url) !important;
     font-weight: 400;
 }
 
-.cm-s-hypermd-light span.cm-link,
-.cm-s-hypermd-light span.cm-string.cm-url.cm-hmd-barelink {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-link,
+html[data-theme="light"] .cm-s-hypermd-light span.cm-string.cm-url.cm-hmd-barelink {
     line-height: 1.6 !important;
     color: var(--color-neo-blue) !important;
     background: transparent !important;
@@ -233,73 +228,69 @@
     transition: background .15s, color .15s;
 }
 
-.cm-s-hypermd-light pre.CodeMirror-activeline span.cm-link,
-.cm-s-hypermd-light pre.CodeMirror-activeline span.cm-string.cm-url.cm-hmd-barelink {
+html[data-theme="light"] .cm-s-hypermd-light pre.CodeMirror-activeline span.cm-link,
+html[data-theme="light"] .cm-s-hypermd-light pre.CodeMirror-activeline span.cm-string.cm-url.cm-hmd-barelink {
     background: var(--color-neo-lime) !important;
     color: var(--color-neo-blue) !important;
     border-bottom: none !important;
 }
 
-.cm-s-hypermd-light span.cm-link:hover,
-.cm-s-hypermd-light span.cm-string.cm-url.cm-hmd-barelink:hover {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-link:hover,
+html[data-theme="light"] .cm-s-hypermd-light span.cm-string.cm-url.cm-hmd-barelink:hover {
     background: transparent !important;
     color: var(--color-neo-orange) !important;
     border-bottom: 3px solid var(--color-neo-orange) !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-quote-1:before {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1:before {
     background: var(--color-neo-blue) !important;
     width: 4px !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-quote-1 {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1 {
     background: color-mix(in srgb, var(--color-neo-blue) 5%, var(--col-bg)) !important;
 }
-/* hypermd.css hardcodes escape colors to #CAA / #666 - match the theme text. */
-.cm-s-hypermd-light span.cm-hmd-escape-backslash,
-.cm-s-hypermd-light span.cm-hmd-escape-char {
+
+html[data-theme="light"] .cm-s-hypermd-light span.cm-hmd-escape-backslash,
+html[data-theme="light"] .cm-s-hypermd-light span.cm-hmd-escape-char {
     color: var(--col-tx) !important;
 }
-/* Hide the leading/trailing "dummy" table separators HyperMD inserts. */
-.cm-s-hypermd-light pre.HyperMD-table-row span.cm-hmd-table-sep.cm-hmd-table-sep-dummy {
+
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-table-row span.cm-hmd-table-sep.cm-hmd-table-sep-dummy {
     visibility: hidden !important;
 }
-/* Round the outer corners of a multi-line blockquote, matching the code-block treatment. */
-.cm-s-hypermd-light pre.HyperMD-quote-1:first-child,
-.cm-s-hypermd-light :not(pre.HyperMD-quote-1) + pre.HyperMD-quote-1 {
+
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1:first-child,
+html[data-theme="light"] .cm-s-hypermd-light :not(pre.HyperMD-quote-1) + pre.HyperMD-quote-1 {
     border-top-left-radius: 7px !important;
     border-top-right-radius: 7px !important;
 }
-.cm-s-hypermd-light pre.HyperMD-quote-1:last-child,
-.cm-s-hypermd-light pre.HyperMD-quote-1:has(+ :not(pre.HyperMD-quote-1)) {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1:last-child,
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1:has(+ :not(pre.HyperMD-quote-1)) {
     border-bottom-left-radius: 7px !important;
     border-bottom-right-radius: 7px !important;
 }
 
-/* `>` marker in neo-blue. No !important so hypermd.css's
-   `pre.hmd-inactive-line span.cm-formatting-quote { color: transparent }`
-   still wins on inactive lines and keeps the arrow hidden until the
-   cursor is on the quote line. */
-.cm-s-hypermd-light span.cm-formatting-quote {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-formatting-quote {
     color: var(--color-neo-blue);
     position: relative;
     left: 1px;
 }
 
-.cm-s-hypermd-light pre.HyperMD-quote-1.hmd-inactive-line {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1.hmd-inactive-line {
     text-indent: -8px !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-quote-1:not(:has(span.cm-formatting-quote)) {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-quote-1:not(:has(span.cm-formatting-quote)) {
     text-indent: 0 !important;
 }
 
-.cm-s-hypermd-light .cm-inline-code,
-.cm-s-hypermd-light code {
+html[data-theme="light"] .cm-s-hypermd-light .cm-inline-code,
+html[data-theme="light"] .cm-s-hypermd-light code {
     font-family: var(--font-mono-brutal) !important;
 }
 
-.cm-s-hypermd-light span.cm-inline-code:not(.cm-formatting):not(.cm-hmd-indented-code) {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-inline-code:not(.cm-formatting):not(.cm-hmd-indented-code) {
     font-family: var(--font-mono-brutal) !important;
     background: #EFEFEF !important;
     color: #C01343 !important;
@@ -311,200 +302,186 @@
     top: -1px;
 }
 
-.cm-s-hypermd-light div.HyperMD-codeblock-bg {
+html[data-theme="light"] .cm-s-hypermd-light div.HyperMD-codeblock-bg {
     background: var(--col-bg-alt) !important;
     border-left: none !important;
     border-right: none !important;
     border-radius: 0 !important;
 }
-.cm-s-hypermd-light div.HyperMD-codeblock-begin-bg {
+html[data-theme="light"] .cm-s-hypermd-light div.HyperMD-codeblock-begin-bg {
     border-top-left-radius: 7px !important;
     border-top-right-radius: 7px !important;
 }
-.cm-s-hypermd-light div.HyperMD-codeblock-end-bg {
+html[data-theme="light"] .cm-s-hypermd-light div.HyperMD-codeblock-end-bg {
     border-bottom-left-radius: 7px !important;
     border-bottom-right-radius: 7px !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-codeblock {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-codeblock {
     font-family: var(--font-mono-brutal) !important;
     font-size: 0.9em !important;
     padding-left: 20px !important;
     color: var(--col-tx) !important;
 }
 
-.cm-hmd-comment,
-.cm-hmd-comment-marker {
+html[data-theme="light"] .cm-hmd-comment,
+html[data-theme="light"] .cm-hmd-comment-marker {
     color: var(--color-neo-orange) !important;
 }
-.cm-s-hypermd-light pre.hmd-inactive-line .cm-hmd-comment-marker {
+html[data-theme="light"] .cm-s-hypermd-light pre.hmd-inactive-line .cm-hmd-comment-marker {
     display: none;
 }
 
-/* Sidebar blink: re-skin the highlight animation to the neo-orange accent
-   (matches the rest of the app's "attention" treatment). Same timing as
-   app.css's `sidebar-highlight` keyframes, just colored differently. */
-@keyframes sidebar-highlight-brutal {
-    0%   { color: var(--color-neo-orange); opacity: 1; }
-    20%  { color: var(--color-neo-orange); opacity: 0.7; }
-    25%  { color: var(--color-neo-orange); opacity: 0.5; }
-    30%  { color: var(--color-neo-orange); opacity: 0.7; }
-    45%  { color: var(--color-neo-orange); opacity: 1; }
-    50%  { color: var(--color-neo-orange); opacity: 0.5; }
-    55%  { color: var(--color-neo-orange); opacity: 0.7; }
-    75%  { color: var(--color-neo-orange); opacity: 1; }
-    100% { color: var(--color-neo-orange); opacity: 1; }
-}
-.sidebar-blink {
+/* sidebar-highlight-brutal keyframes defined once in theme-brutal-dark.css */
+html[data-theme="light"] .sidebar-blink {
     animation-name: sidebar-highlight-brutal !important;
 }
 
-.cm-s-hypermd-light img.hmd-image {
+html[data-theme="light"] .cm-s-hypermd-light img.hmd-image {
     border-radius: 7px !important;
     border: none !important;
 }
 
-.cm-s-hypermd-light pre.HyperMD-hr {
+html[data-theme="light"] .cm-s-hypermd-light pre.HyperMD-hr {
     color: var(--col-border) !important;
     background: transparent !important;
 }
 
-.cm-s-hypermd-light div.HyperMD-hr-bg {
+html[data-theme="light"] .cm-s-hypermd-light div.HyperMD-hr-bg {
     background: var(--col-border) !important;
     height: 2px !important;
 }
 
-::selection {
+html[data-theme="light"] ::selection {
     background: rgba(46, 92, 255, 0.35) !important;
 }
-::-moz-selection {
+html[data-theme="light"] ::-moz-selection {
     background: rgba(46, 92, 255, 0.35) !important;
 }
-.CodeMirror-selected,
-.CodeMirror-focused .CodeMirror-selected {
+html[data-theme="light"] .CodeMirror-selected,
+html[data-theme="light"] .CodeMirror-focused .CodeMirror-selected {
     background: rgba(46, 92, 255, 0.35) !important;
 }
-.cm-s-hypermd-light span.cm-math,
-.cm-s-hypermd-light span.hmd-fold-math-placeholder {
+html[data-theme="light"] .cm-s-hypermd-light span.cm-math,
+html[data-theme="light"] .cm-s-hypermd-light span.hmd-fold-math-placeholder {
     background: rgba(46, 92, 255, 0.35) !important;
 }
 
-.tree-container li span.tree-item {
+html[data-theme="light"] .tree-container li span.tree-item {
     border-radius: 0 !important;
 }
 
-.tree-container li span.tree-item:hover {
+html[data-theme="light"] .tree-container li span.tree-item:hover {
     background-color: var(--color-neo-orange) !important;
     color: #1A1A1A !important;
 }
-.tree-container li span.tree-item:hover .tree-mod_icon svg {
+html[data-theme="light"] .tree-container li span.tree-item:hover .tree-mod_icon svg {
     stroke: #1A1A1A !important;
 }
 
-.tree-container span.tree-item.tree-leaf.selected,
-.tree-container span.tree-item.tree-leaf.selected:hover {
+html[data-theme="light"] .tree-container span.tree-item.tree-leaf.selected,
+html[data-theme="light"] .tree-container span.tree-item.tree-leaf.selected:hover {
     background-color: var(--color-neo-blue) !important;
     color: #FFF !important;
 }
-.tree-container span.tree-item.tree-leaf.selected .tree-mod_icon svg,
-.tree-container span.tree-item.tree-leaf.selected:hover .tree-mod_icon svg {
+html[data-theme="light"] .tree-container span.tree-item.tree-leaf.selected .tree-mod_icon svg,
+html[data-theme="light"] .tree-container span.tree-item.tree-leaf.selected:hover .tree-mod_icon svg {
     stroke: #FFF !important;
 }
 
-#search-results .focused,
-#move-results .focused {
+html[data-theme="light"] #search-results .focused,
+html[data-theme="light"] #move-results .focused {
     background-color: var(--color-neo-orange) !important;
     color: #1A1A1A !important;
     border-radius: 0 !important;
 }
 
-.message {
+html[data-theme="light"] .message {
     transition: background 0.15s ease !important;
 }
-.message:hover {
+html[data-theme="light"] .message:hover {
     background: var(--color-neo-orange) !important;
 }
-/* Light theme: keep the complete-btn checkmark blue regardless of state,
-   distinct from the orange message-hover wash. */
-.complete-btn,
-.complete-btn:hover,
-.message.completed .complete-btn,
-.message.completed .complete-btn:hover {
+html[data-theme="light"] .complete-btn,
+html[data-theme="light"] .complete-btn:hover,
+html[data-theme="light"] .message.completed .complete-btn,
+html[data-theme="light"] .message.completed .complete-btn:hover {
     color: var(--color-neo-blue) !important;
 }
-.complete-btn:hover {
+html[data-theme="light"] .complete-btn:hover {
     background: transparent !important;
 }
-#chat .message-content,
-#chat .message-content:hover {
+html[data-theme="light"] #chat .message-content,
+html[data-theme="light"] #chat .message-content:hover {
     background: transparent !important;
     cursor: pointer !important;
 }
-.message-content.editing {
+html[data-theme="light"] .message-content.editing {
     background: color-mix(in srgb, var(--color-neo-lime) 35%, transparent) !important;
     border: 1px solid var(--color-neo-blue) !important;
 }
-.message-time {
+html[data-theme="light"] .message-time {
     color: var(--col-tx-alt) !important;
 }
-.action-btn:hover {
+html[data-theme="light"] .action-btn:hover {
     background: var(--color-neo-blue) !important;
 }
-.message.actions-pinned,
-.message.selected {
+html[data-theme="light"] .message.actions-pinned,
+html[data-theme="light"] .message.selected {
     background: color-mix(in srgb, var(--color-neo-blue) 18%, transparent) !important;
     border-color: var(--color-neo-blue) !important;
 }
 
-.cm-s-hypermd-light .CodeMirror-line {
+html[data-theme="light"] .cm-s-hypermd-light .CodeMirror-line {
     line-height: 1.9 !important;
 }
 
-.empty-title,
-.empty-desc {
+html[data-theme="light"] .empty-title,
+html[data-theme="light"] .empty-desc {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     letter-spacing: 0.04em;
 }
-.empty-title {
+html[data-theme="light"] .empty-title {
     font-weight: 800 !important;
     padding-bottom: 14px;
     border-bottom: 2px solid var(--col-border);
     margin-bottom: 20px !important;
 }
-.empty-desc {
+html[data-theme="light"] .empty-desc {
     font-weight: 500 !important;
     letter-spacing: 0.08em;
     color: var(--color-neo-orange) !important;
 }
 
-#search, #move,
-#search-input, #move-input,
-#nav-buttons,
-.message-content,
-.message-actions,
-.CodeMirror-hints,
-.CodeMirror-hint,
-.sidebar-ctx-menu {
+html[data-theme="light"] #search,
+html[data-theme="light"] #move,
+html[data-theme="light"] #search-input,
+html[data-theme="light"] #move-input,
+html[data-theme="light"] #nav-buttons,
+html[data-theme="light"] .message-content,
+html[data-theme="light"] .message-actions,
+html[data-theme="light"] .CodeMirror-hints,
+html[data-theme="light"] .CodeMirror-hint,
+html[data-theme="light"] .sidebar-ctx-menu {
     border-radius: 0 !important;
 }
 
-#chat-container.modal {
+html[data-theme="light"] #chat-container.modal {
     border-radius: 7px !important;
 }
-#chat-input {
+html[data-theme="light"] #chat-input {
     border-radius: 6px !important;
 }
 
-.CodeMirror-hints,
-.CodeMirror-hint {
+html[data-theme="light"] .CodeMirror-hints,
+html[data-theme="light"] .CodeMirror-hint {
     font-family: var(--font) !important;
 }
-.CodeMirror-hint-active {
+html[data-theme="light"] .CodeMirror-hint-active {
     background-color: var(--color-neo-orange) !important;
     color: #1A1A1A !important;
 }
-.sidebar-ctx-menu-item:hover {
+html[data-theme="light"] .sidebar-ctx-menu-item:hover {
     background: var(--color-neo-orange) !important;
     color: #1A1A1A !important;
 }
-} /* end @media (prefers-color-scheme: light) */

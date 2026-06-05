@@ -17,6 +17,9 @@
     <link href="lib/theme-brutal.css?v=" rel="stylesheet">
     <link href="lib/theme-brutal-dark.css?v=" rel="stylesheet">
     <link href="chat.css?v=" rel="stylesheet">
+    <script>
+    (function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+    </script>
     <link href="lib/latex/katex.min.css?v=" rel="stylesheet">
     <script src="lib/latex/katex.min.js?v="></script>
     <script src="lib/sidebar.js?v="></script>
@@ -168,6 +171,10 @@
         <button onclick="toggleSettingsPanel()" aria-label="Close settings">×</button>
     </div>
     <div class="settings-body">
+        <div class="settings-item">
+            <label>Appearance</label>
+            <button id="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle theme" style="background:none;border:1px solid var(--col-border);border-radius:6px;padding:6px 12px;cursor:pointer;color:var(--col-tx);font-size:13px;display:flex;align-items:center;gap:6px;"></button>
+        </div>
         <div class="settings-item">
             <label>Chat Database Folder</label>
             <div id="chat-dir-display" class="settings-value">ChatDatabase</div>

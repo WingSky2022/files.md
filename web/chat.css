@@ -52,17 +52,19 @@
 
 .chat-tab.active {
     background: var(--col-bg);
+    border-top: 2px solid var(--col-marker);
     border-bottom: 2px solid var(--col-bg);
     margin-bottom: -1px;
 }
 
 .chat-tab-name {
     font-size: 14px;
-    color: var(--col-tx);
+    color: var(--col-tx-alt);
 }
 
 .chat-tab.active .chat-tab-name {
-    font-weight: 500;
+    color: var(--col-tx);
+    font-weight: 600;
 }
 
 .chat-tab-name.editing {
