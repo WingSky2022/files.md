@@ -753,7 +753,9 @@ async function moveFromChat(text, callback) {
 }
 
 function attachEventListeners() {
-    document.addEventListener('keydown', function (e) {
+    if (!chat._eventListenersAttached) {
+        chat._eventListenersAttached = true;
+        document.addEventListener('keydown', function (e) {
         if (isMetaKey(e) && e.key === 'a') {
             const searchModal = document.getElementById('search');
             const moveModal = document.getElementById('move');
@@ -888,6 +890,7 @@ function attachEventListeners() {
             }
         }
     }, true);
+    }
 
     // Add event listeners for editing message content
     // chatContainer.querySelectorAll('.message-content[contenteditable]').forEach(element => {
@@ -938,11 +941,6 @@ function attachEventListeners() {
             // Force re-render (bypass cache)
             lastChatText = null;
             await renderMessages();
-
-            // Suppress slideIn animation on ALL messages to prevent flash
-            chat.querySelectorAll('.message').forEach(msg => {
-                msg.style.animation = 'none';
-            });
 
             // FLIP: animate only messages that actually moved
             chat.querySelectorAll('.message').forEach(msg => {
@@ -1345,9 +1343,19 @@ async function renderMessages() {
     </div>
     `).join('');
 
-    // add own class every other message
-    chat.innerHTML = sorted.map((message, i) => `
-        <div class="message ${i % 2 === 1 ? 'own' : ''}${message.done ? ' completed' : ''}" data-text="${escapeHtml(message.text)}" data-timestamp="${message.timestamp}">
+    // Reuse existing DOM nodes to avoid slideIn flash on existing messages
+    const fragment = document.createDocumentFragment();
+    const existingMap = new Map();
+    chat.querySelectorAll('.message').forEach(msg => {
+        const key = msg.dataset.timestamp + '::' + msg.dataset.text;
+        existingMap.set(key, msg);
+    });
+
+    sorted.forEach((message, i) => {
+        const key = message.timestamp + '::' + message.text;
+        let msg = existingMap.get(key);
+        const cls = `message ${i % 2 === 1 ? 'own' : ''}${message.done ? ' completed' : ''}`;
+        const html = `
             <button class="complete-btn" title="Mark as done">
                 <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6.5 17l6 6 13-13"/>
@@ -1454,8 +1462,30 @@ async function renderMessages() {
                     </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
 
+        if (msg) {
+            existingMap.delete(key);
+            msg.className = cls;
+            msg.style.animation = '';
+            msg.style.transform = '';
+            msg.style.transition = '';
+        } else {
+            msg = document.createElement('div');
+            msg.className = cls;
+            msg.dataset.text = message.text;
+            msg.dataset.timestamp = message.timestamp;
+        }
+        msg.innerHTML = html;
+        fragment.appendChild(msg);
+    });
+
+    // Remove stale messages that are no longer in the list
+    existingMap.forEach(msg => msg.remove());
+
+    if (chat.querySelector('.empty-state')) {
+        chat.innerHTML = '';
+    }
+    chat.appendChild(fragment);
     attachEventListeners();
 }
