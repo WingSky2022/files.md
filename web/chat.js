@@ -10,7 +10,8 @@ const RECENT_FILES = 1;
 const CHAT_CONFIG_PATH = 'chat-config.json';
 const CHAT_CONFIG_PATH_TMP = 'chat-config.json.tmp';
 const CHAT_CONFIG_PATH_BAK = 'chat-config.json.bak';
-const CHAT_CONFIG_SCHEMA_VERSION = 1;
+const CHAT_CONFIG_SCHEMA_VERSION = 2;
+const SOFT_DELETE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7-day soft-delete TTL
 
 // Cache of the last rendered messages JSON. renderMessages skips
 // work when the messages haven't changed.
@@ -39,6 +40,7 @@ async function loadChatConfig() {
     if (config !== null) {
         chatTabs = config.tabs;
         currentChatTab = config.lastActiveTab;
+        if (cleanupSoftDeletedMessages(config)) await saveChatConfigAtomic();
         return;
     }
 
@@ -74,6 +76,7 @@ async function loadChatConfig() {
         currentChatTab = backupConfig.lastActiveTab;
         showToast('Chat config was corrupted - restored from backup', 5000);
         logError('loadChatConfig: recovered from .bak. mainErr=', mainErr);
+        cleanupSoftDeletedMessages(backupConfig);
         // Persist recovered state so a subsequent crash doesn't depend on .bak forever
         await saveChatConfigAtomic();
         return;
@@ -101,8 +104,36 @@ function migrateConfig(config) {
         config.lastActiveTab = config.lastActiveTab || (config.tabs[0]?.name ?? 'Chat');
         v = 1;
     }
+    if (v < 2) {
+        // v1 → v2: soft-delete fields on existing messages
+        for (const tab of (config.tabs || [])) {
+            for (const msg of (tab.messages || [])) {
+                if (msg.deleted === undefined) msg.deleted = false;
+                if (msg.deletedAt === undefined) msg.deletedAt = null;
+            }
+        }
+        v = 2;
+    }
     config.schemaVersion = CHAT_CONFIG_SCHEMA_VERSION;
     return config;
+}
+
+// Silently purge messages soft-deleted more than SOFT_DELETE_TTL_MS ago.
+// Returns true if any messages were removed (caller should persist).
+function cleanupSoftDeletedMessages(config) {
+    const now = Date.now();
+    let cleaned = false;
+    for (const tab of config.tabs) {
+        const before = tab.messages.length;
+        tab.messages = tab.messages.filter(msg => {
+            if (msg.deleted && msg.deletedAt) {
+                return (now - msg.deletedAt) < SOFT_DELETE_TTL_MS;
+            }
+            return true;
+        });
+        if (tab.messages.length !== before) cleaned = true;
+    }
+    return cleaned;
 }
 
 /**
@@ -752,6 +783,61 @@ async function moveFromChat(text, callback) {
     await saveMessagesToChat(filteredMessages);
 }
 
+// Undo toast for soft-deleted messages (3-second window)
+function showUndoDeleteToast(deletedMsgs) {
+    // Dismiss any existing toast — previous deletes lose their undo button
+    // but remain soft-deleted (recoverable from JSON within 7-day TTL).
+    const existing = document.getElementById('undo-delete-toast');
+    if (existing) {
+        if (existing._timer) clearTimeout(existing._timer);
+        existing.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.id = 'undo-delete-toast';
+    toast.style.cssText =
+        'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);' +
+        'background:#333;color:#fff;padding:10px 16px;border-radius:8px;' +
+        'display:flex;align-items:center;gap:12px;z-index:10000;font-size:14px;' +
+        'box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;transition:opacity 0.3s;';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = '已删除';
+
+    const undoBtn = document.createElement('button');
+    undoBtn.textContent = '撤销';
+    undoBtn.style.cssText =
+        'background:none;border:none;color:#6af;cursor:pointer;' +
+        'font-weight:bold;font-size:14px;padding:0;';
+
+    toast.appendChild(textSpan);
+    toast.appendChild(undoBtn);
+    document.body.appendChild(toast);
+
+    // Fade in
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+
+    function dismiss() {
+        if (toast._timer) clearTimeout(toast._timer);
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }
+
+    // Undo handler
+    undoBtn.addEventListener('click', async () => {
+        for (const msg of deletedMsgs) {
+            msg.deleted = false;
+            msg.deletedAt = null;
+        }
+        await saveChatConfigAtomic();
+        await renderMessages();
+        dismiss();
+    });
+
+    // Auto-dismiss after 3 seconds
+    toast._timer = setTimeout(dismiss, 3000);
+}
+
 function attachEventListeners() {
     if (!chat._eventListenersAttached) {
         chat._eventListenersAttached = true;
@@ -1137,31 +1223,49 @@ function attachEventListeners() {
         btn.addEventListener('click', async function (e) {
             e.stopPropagation();
             const selectedMessages = document.querySelectorAll('.message.selected');
-            let msgs = [];
+            let targetKeys = [];
             let messagesToRemove = [];
             if (selectedMessages.length > 0) {
-                msgs = Array.from(selectedMessages).map(msg => msg.querySelector('.message-content').textContent);
-                messagesToRemove = selectedMessages;
+                targetKeys = Array.from(selectedMessages).map(el => ({
+                    text: el.dataset.text,
+                    timestamp: el.dataset.timestamp
+                }));
+                messagesToRemove = Array.from(selectedMessages);
             } else {
-                msgs = [btn.closest('.message').querySelector('.message-content').textContent];
-                messagesToRemove = [btn.closest('.message')];
+                const el = btn.closest('.message');
+                targetKeys = [{
+                    text: el.dataset.text,
+                    timestamp: el.dataset.timestamp
+                }];
+                messagesToRemove = [el];
             }
 
-            const { messages } = await parseMessagesFromChat();
-            const msgSet = new Set(msgs);
-            const filteredMessages = messages.filter(msg => !msgSet.has(msg.text));
-            await saveMessagesToChat(filteredMessages);
+            // Soft-delete: mark instead of remove
+            const tab = getCurrentTab();
+            const now = Date.now();
+            const deletedMsgs = [];
+            for (const { text, timestamp } of targetKeys) {
+                const msg = tab.messages.find(m => m.text === text && m.timestamp === timestamp);
+                if (msg) {
+                    msg.deleted = true;
+                    msg.deletedAt = now;
+                    deletedMsgs.push(msg);
+                }
+            }
+            await saveChatConfigAtomic();
 
+            // Visual removal animation
             messagesToRemove.forEach(message => {
                 message.classList.add('removing');
-                setTimeout(() => {
-                    message.remove();
-                }, 300);
+                setTimeout(() => { message.remove(); }, 300);
             });
-            setTimeout(() => {
-                renderMessages();
-            }, 500);
+            setTimeout(() => { renderMessages(); }, 500);
             chatInput.focus();
+
+            // Show undo toast (3-second window)
+            if (deletedMsgs.length > 0) {
+                showUndoDeleteToast(deletedMsgs);
+            }
         });
     });
 
@@ -1305,7 +1409,8 @@ function attachEventListeners() {
 }
 
 async function renderMessages() {
-    const { messages, text } = await parseMessagesFromChat();
+    const { messages: allMessages, text } = await parseMessagesFromChat();
+    const messages = allMessages.filter(m => !m.deleted);
     if (text === lastChatText) {
         log('Chat unchanged, skipping render');
         return;
