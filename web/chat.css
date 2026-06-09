@@ -1,6 +1,7 @@
 #chat {
     flex: 1;
     overflow-y: auto;
+    overflow-anchor: none;
     padding: 24px;
     display: flex;
     flex-direction: column;

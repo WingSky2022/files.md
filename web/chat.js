@@ -44,15 +44,27 @@ async function loadChatConfig() {
         return;
     }
 
-    // No-file (NotFoundError) is a fresh install — silent, no toast
-    if (mainErr && mainErr.name === 'NotFoundError') {
-        chatTabs = [{ name: 'Chat', messages: [] }];
-        currentChatTab = 'Chat';
+    // Attempt 2: recover from .tmp (crash may have left a valid .tmp)
+    let tmpConfig = null;
+    let tmpErr = null;
+    try {
+        const text = await read(CHAT_CONFIG_PATH_TMP, chatDirHandle);
+        tmpConfig = migrateConfig(JSON.parse(text));
+    } catch (err) {
+        tmpErr = err;
+    }
+
+    if (tmpConfig !== null) {
+        chatTabs = tmpConfig.tabs;
+        currentChatTab = tmpConfig.lastActiveTab;
+        showToast('Chat config recovered from temporary file', 5000);
+        logError('loadChatConfig: recovered from .tmp. mainErr=', mainErr);
+        cleanupSoftDeletedMessages(tmpConfig);
         await saveChatConfigAtomic();
         return;
     }
 
-    // Attempt 2: recover from .bak
+    // Attempt 3: recover from .bak
     let backupConfig = null;
     let backupErr = null;
     try {
@@ -82,11 +94,18 @@ async function loadChatConfig() {
         return;
     }
 
-    // Attempt 3: both unreadable
+    // Attempt 4: all sources unreadable — fresh install or total loss
     chatTabs = [{ name: 'Chat', messages: [] }];
     currentChatTab = 'Chat';
-    showToast('Chat config is unrecoverable - starting fresh', 5000);
-    logError('loadChatConfig: both main and .bak unreadable. mainErr=', mainErr, 'backupErr=', backupErr);
+    const allNotFound = (
+        (!mainErr || mainErr.name === 'NotFoundError') &&
+        (!tmpErr || tmpErr.name === 'NotFoundError') &&
+        (!backupErr || backupErr.name === 'NotFoundError')
+    );
+    if (!allNotFound) {
+        showToast('Chat config is unrecoverable - starting fresh', 5000);
+        logError('loadChatConfig: all sources unreadable. mainErr=', mainErr, 'tmpErr=', tmpErr, 'backupErr=', backupErr);
+    }
     await saveChatConfigAtomic();
 }
 
@@ -137,10 +156,10 @@ function cleanupSoftDeletedMessages(config) {
 }
 
 /**
- * Atomic save with .bak promotion. Writes to .tmp first, then renames
- * over the target. On success, the previous good content is promoted
- * to .bak (single-slot). On any failure, .tmp is left on disk for
- * inspection and a toast is shown to the user.
+ * Crash-tolerant save with .bak/.tmp recovery.
+ * Promotes the current main file to .bak, writes the new content to .tmp,
+ * then overwrites the main file directly. This avoids the old delete-then-move
+ * window where chat-config.json could disappear if the browser crashed.
  */
 async function saveChatConfigAtomic() {
     const chatDirHandle = await getChatDirHandle();
@@ -158,24 +177,54 @@ async function saveChatConfigAtomic() {
         return;
     }
 
+    // Validate before writing
+    let parsed;
     try {
-        // 1) Read current target for backup promotion. Best-effort.
-        let previousGood = null;
+        parsed = JSON.parse(newContent);
+    } catch (e) {
+        logError('saveChatConfigAtomic: JSON.parse validation failed:', e);
+        showToast('Chat save failed - invalid JSON', 3000);
+        return;
+    }
+
+    if (!Array.isArray(parsed.tabs) || parsed.tabs.length === 0) {
+        logError('saveChatConfigAtomic: validation failed - tabs empty or not array');
+        showToast('Chat save failed - empty tabs', 3000);
+        return;
+    }
+
+    for (const tab of parsed.tabs) {
+        if (!tab.name || typeof tab.name !== 'string') {
+            logError('saveChatConfigAtomic: validation failed - tab missing name');
+            showToast('Chat save failed - invalid tab data', 3000);
+            return;
+        }
+        if (!Array.isArray(tab.messages)) {
+            logError('saveChatConfigAtomic: validation failed - tab messages not array');
+            showToast('Chat save failed - invalid tab data', 3000);
+            return;
+        }
+    }
+
+    const tabNames = parsed.tabs.map(t => t.name);
+    if (!tabNames.includes(parsed.lastActiveTab)) {
+        parsed.lastActiveTab = parsed.tabs[0].name;
+        currentChatTab = parsed.lastActiveTab;
+        newContent = JSON.stringify(parsed, null, 2);
+    }
+
+    try {
+        // 1) Backup current main to .bak (best-effort, direct overwrite)
         try {
-            previousGood = await read(CHAT_CONFIG_PATH, chatDirHandle);
+            const previousGood = await read(CHAT_CONFIG_PATH, chatDirHandle);
+            await write(CHAT_CONFIG_PATH_BAK, previousGood, chatDirHandle);
         } catch (e) { /* first write or unreadable */ }
 
-        // 2) Atomic replace of target.
-        await writeAtomic(CHAT_CONFIG_PATH, newContent, chatDirHandle);
+        // 2) Write .tmp for crash recovery
+        await write(CHAT_CONFIG_PATH_TMP, newContent, chatDirHandle);
 
-        // 3) Promote previous good to .bak. Failure here doesn't roll back.
-        if (previousGood !== null) {
-            try {
-                await writeAtomic(CHAT_CONFIG_PATH_BAK, previousGood, chatDirHandle);
-            } catch (err) {
-                logError('saveChatConfigAtomic: .bak update failed:', err);
-            }
-        }
+        // 3) Overwrite main directly (no delete-then-move window)
+        await write(CHAT_CONFIG_PATH, newContent, chatDirHandle);
     } catch (err) {
         logError('saveChatConfigAtomic error:', err);
         showToast('Chat save failed - check console', 3000);
@@ -205,6 +254,19 @@ async function saveMessagesToChat(messages) {
         await saveChatConfigAtomic();
         lastChatText = JSON.stringify(messages);
     }
+}
+
+function currentTabMessagesText() {
+    const tab = getCurrentTab();
+    return tab ? JSON.stringify(tab.messages || []) : '[]';
+}
+
+function markChatRenderCacheClean() {
+    lastChatText = currentTabMessagesText();
+}
+
+function invalidateChatRenderCache() {
+    lastChatText = null;
 }
 
 
@@ -333,6 +395,7 @@ async function switchChatTab(tabName) {
     currentChatTab = tabName;
     await saveChatConfigAtomic();
     renderChatTabs();
+    lastChatText = null; // Reset render cache so switching always refreshes
     await renderMessages();
     scrollToBottom();
 }
@@ -830,12 +893,44 @@ function showUndoDeleteToast(deletedMsgs) {
             msg.deletedAt = null;
         }
         await saveChatConfigAtomic();
+        invalidateChatRenderCache();
         await renderMessages();
         dismiss();
     });
 
     // Auto-dismiss after 3 seconds
     toast._timer = setTimeout(dismiss, 3000);
+}
+
+function animateRemovingMessages(messages) {
+    Array.from(messages).forEach(message => {
+        if (!message || !message.isConnected) return;
+        const rect = message.getBoundingClientRect();
+        const clone = message.cloneNode(true);
+
+        clone.classList.add('actions-shown');
+        clone.style.position = 'fixed';
+        clone.style.left = `${rect.left}px`;
+        clone.style.top = `${rect.top}px`;
+        clone.style.width = `${rect.width}px`;
+        clone.style.height = `${rect.height}px`;
+        clone.style.margin = '0';
+        clone.style.zIndex = '10000';
+        clone.style.pointerEvents = 'none';
+        clone.style.boxSizing = 'border-box';
+        document.body.appendChild(clone);
+
+        message.style.boxSizing = 'border-box';
+        message.style.flex = '0 0 auto';
+        message.style.height = `${rect.height}px`;
+        message.style.minHeight = `${rect.height}px`;
+        message.style.visibility = 'hidden';
+        clone.classList.add('removing');
+        setTimeout(() => {
+            clone.remove();
+            message.remove();
+        }, 300);
+    });
 }
 
 function attachEventListeners() {
@@ -1122,12 +1217,7 @@ function attachEventListeners() {
             })();
 
             // TODO only remove if previous is successful
-            messagesToRemove.forEach(message => {
-                message.classList.add('removing');
-                setTimeout(() => {
-                    message.remove();
-                }, 300);
-            });
+            animateRemovingMessages(messagesToRemove);
             chatInput.focus();
         });
     });
@@ -1164,12 +1254,7 @@ function attachEventListeners() {
                 renderSidebar('', [joinPath('/', btn.dataset.checklist)]);
             })();
 
-            messagesToRemove.forEach(message => {
-                message.classList.add('removing');
-                setTimeout(() => {
-                    message.remove();
-                }, 300);
-            });
+            animateRemovingMessages(messagesToRemove);
             setTimeout(() => {
                 renderMessages();
             }, 500);
@@ -1209,12 +1294,7 @@ function attachEventListeners() {
                 renderSidebar('', destinations);
             })();
 
-            messagesToRemove.forEach(message => {
-                message.classList.add('removing');
-                setTimeout(() => {
-                    message.remove();
-                }, 300);
-            });
+            animateRemovingMessages(messagesToRemove);
             chatInput.focus();
         });
     });
@@ -1254,11 +1334,18 @@ function attachEventListeners() {
             }
             await saveChatConfigAtomic();
 
+            // Update render cache: if visible messages remain, mark clean so
+            // delayed renderMessages() skips; if none remain, invalidate so
+            // empty-state markup is rendered.
+            const visibleCount = tab.messages.filter(m => !m.deleted).length;
+            if (visibleCount > 0) {
+                markChatRenderCacheClean();
+            } else {
+                invalidateChatRenderCache();
+            }
+
             // Visual removal animation
-            messagesToRemove.forEach(message => {
-                message.classList.add('removing');
-                setTimeout(() => { message.remove(); }, 300);
-            });
+            animateRemovingMessages(messagesToRemove);
             setTimeout(() => { renderMessages(); }, 500);
             chatInput.focus();
 
@@ -1299,12 +1386,7 @@ function attachEventListeners() {
                 renderSidebar('', [joinPath('/', path)]);
             })();
 
-            messagesToRemove.forEach(message => {
-                message.classList.add('removing');
-                setTimeout(() => {
-                    message.remove();
-                }, 300);
-            });
+            animateRemovingMessages(messagesToRemove);
 
             chatInput.focus();
         });
